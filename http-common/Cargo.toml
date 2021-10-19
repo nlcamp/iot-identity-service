@@ -18,6 +18,9 @@ log = "0.4"
 nix = "0.18"
 openssl = { version = "0.10" }
 openssl-sys = { version = "0.9" }
+opentelemetry = { version = "0.16", features = ["rt-tokio", "metrics", "serialize"], optional = true }
+opentelemetry-http = { version = "0.5", optional = true }
+opentelemetry-otlp = { version = "0.9", features = ["tonic", "metrics"], optional = true }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -28,3 +31,5 @@ url = { version = "2", features = ["serde"] }
 [dev-dependencies]
 serde_json = "1"
 
+[features]
+otel = ["opentelemetry", "opentelemetry-http", "opentelemetry-otlp"]
