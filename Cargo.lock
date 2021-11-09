@@ -1282,6 +1282,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64",
+ "cfg-if 1.0.0",
  "futures-util",
  "headers",
  "http",

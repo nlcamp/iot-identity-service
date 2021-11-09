@@ -136,22 +136,31 @@ macro_rules! make_service {
                                         },
 
                                         http::Method::GET => {
-                                            let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
-                                                propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
-                                            });
-                                            let tracer = opentelemetry::global::tracer("aziot-edged");
-                                            use opentelemetry::trace::Tracer;
-                                            // let span = tracer .start("edgelet-http-mgmt:module:list");
-                                            // let cx = opentelemetry::trace::TraceContextExt::current_with_span(span).with_parent_context(parent_cx);
-                                            let span = tracer
-                                                .span_builder("edgelet-http-mgmt:module:list")
-                                                .with_kind(opentelemetry::trace::SpanKind::Server)
-                                                .with_parent_context(parent_cx)
-                                            .start(&tracer);
-                                            let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);                                            
-                                            match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::get(route), cx.clone()).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
+                                            cfg_if::cfg_if! {
+                                                if #[cfg(feature = "otel")] {
+                                                    let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+                                                        propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
+                                                    });
+                                                    let tracer = opentelemetry::global::tracer("aziot-edged");
+                                                    use opentelemetry::trace::Tracer;
+                                                    // let span = tracer .start("edgelet-http-mgmt:module:list");
+                                                    // let cx = opentelemetry::trace::TraceContextExt::current_with_span(span).with_parent_context(parent_cx);
+                                                    let span = tracer
+                                                        .span_builder("edgelet-http-mgmt:module:list")
+                                                        .with_kind(opentelemetry::trace::SpanKind::Server)
+                                                        .with_parent_context(parent_cx)
+                                                    .start(&tracer);
+                                                    let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);                                            
+                                                    match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::get(route), cx.clone()).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                } else {
+                                                    match <$route as http_common::server::Route>::get(route).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                }
                                             }
                                         },
 
