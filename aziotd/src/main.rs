@@ -15,7 +15,20 @@
 
 mod error;
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "otel")] {
 use error::{Error, ErrorKind};
+use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::sdk::Resource;
+use opentelemetry::{
+    global,
+    sdk::trace as sdktrace,
+    trace::{TraceError, Tracer},
+    KeyValue,
+};
+use opentelemetry_otlp::WithExportConfig;
+}
+}
 
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 

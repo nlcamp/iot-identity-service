@@ -143,8 +143,6 @@ macro_rules! make_service {
                                                     });
                                                     let tracer = opentelemetry::global::tracer("aziot-edged");
                                                     use opentelemetry::trace::Tracer;
-                                                    // let span = tracer .start("edgelet-http-mgmt:module:list");
-                                                    // let cx = opentelemetry::trace::TraceContextExt::current_with_span(span).with_parent_context(parent_cx);
                                                     let span = tracer
                                                         .span_builder("edgelet-http-mgmt:module:list")
                                                         .with_kind(opentelemetry::trace::SpanKind::Server)
