@@ -11,7 +11,7 @@ pub struct Service {
 
 http_common::make_service! {
     service: Service,
-    name: String::new("aziot-tpmd"),
+    name: "aziot-tpmd",
     api_version: aziot_tpm_common_http::ApiVersion,
     routes: [
         get_tpm_keys::Route,

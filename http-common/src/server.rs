@@ -471,7 +471,7 @@ mod test_server {
 
     http_common::make_service! {
         service: Service,
-        name: String::new("test_route"),
+        name: "test_route",
         api_version: ApiVersion,
         routes: [
             test_route::Route,

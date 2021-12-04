@@ -17,7 +17,7 @@ pub struct Service {
 
 http_common::make_service! {
     service: Service,
-    name: String::new("aziot-keyd"),
+    name: "aziot-keyd",
     api_version: aziot_key_common_http::ApiVersion,
     routes: [
         create_delete_key::Route,
