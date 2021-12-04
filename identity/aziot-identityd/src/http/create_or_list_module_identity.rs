@@ -1,5 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#[cfg(feature="otel")]
+use opentelemetry::{
+    global,
+    trace::{Span, Tracer, TracerProvider},
+};
+
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     id_type: Option<String>,
@@ -44,12 +50,24 @@ impl http_common::server::Route for Route {
     type DeleteBody = serde::de::IgnoredAny;
 
     async fn get(self) -> http_common::server::RouteResponse {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "otel")] {
+                let tracer_provider = global::tracer_provider();
+                let tracer = tracer_provider.tracer("aziot-identityd", Some(env!("CARGO_PKG_VERSION")));
+                let mut span = tracer.start("identity:get");
+            }
+        }
+
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
         let auth_id = match api.authenticator.authenticate(self.user) {
             Ok(auth_id) => auth_id,
-            Err(err) => return Err(super::to_http_error(&err)),
+            Err(err) => {
+                #[cfg(feature="otel")]
+                span.end();
+                return Err(super::to_http_error(&err));
+            }
         };
 
         let identities = match api.get_identities(auth_id, self.id_type.as_deref()).await {
@@ -58,6 +76,9 @@ impl http_common::server::Route for Route {
         };
         let res = aziot_identity_common_http::get_module_identities::Response { identities };
         let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        #[cfg(feature="otel")]
+        span.end();
+
         Ok(res)
     }
 

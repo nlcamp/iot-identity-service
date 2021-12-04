@@ -10,6 +10,7 @@ pub struct Service {
 
 http_common::make_service! {
     service: Service,
+    name: String::new("aziot-certd"),
     api_version: aziot_cert_common_http::ApiVersion,
     routes: [
         create::Route,

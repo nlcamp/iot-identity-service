@@ -16,6 +16,19 @@
 mod error;
 
 use error::{Error, ErrorKind};
+cfg_if::cfg_if! {
+    if #[cfg(feature = "otel")] {
+        use opentelemetry::sdk::propagation::TraceContextPropagator;
+        use opentelemetry::sdk::Resource;
+        use opentelemetry::{
+            global,
+            sdk::trace as sdktrace,
+            trace::{TraceError, Tracer},
+            KeyValue,
+        };
+        use opentelemetry_otlp::WithExportConfig;
+    }
+}
 
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
@@ -23,6 +36,12 @@ const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 async fn main() {
     logger::try_init()
         .expect("cannot fail to initialize global logger from the process entrypoint");
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "otel")] {
+            let _tracer = init_tracer().expect("Error initializing tracer");
+        }
+    }
 
     if let Err(err) = main_inner().await {
         log::error!("{}", err.0);
@@ -301,4 +320,23 @@ mod tests {
             let _ = super::process_name_from_args(&mut input).unwrap_err();
         }
     }
+}
+
+#[cfg(features="otel")]
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+    global::set_text_map_propagator(TraceContextPropagator::new());
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://localhost:4317"),
+        )
+        .with_trace_config(
+            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "aziot-edged",
+            )])),
+        )
+        .install_batch(opentelemetry::runtime::Tokio)
 }

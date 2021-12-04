@@ -6,6 +6,7 @@ use crate::DynRangeBounds;
 macro_rules! make_service {
     (
         service: $service_ty:ty,
+        name: $name:expr,
         api_version: $api_version_ty:ty,
         routes: [
             $($route:path ,)*
@@ -13,6 +14,7 @@ macro_rules! make_service {
     ) => {
         http_common::make_service!{
             service: $service_ty,
+            name: $name,
             {}
             {}
             api_version: $api_version_ty,
@@ -23,6 +25,7 @@ macro_rules! make_service {
     };
     (
         service: $service_ty:ty,
+        name: $name:expr,
         { $($impl_generics:tt)* }
         { $($bounds:tt)* }
         api_version: $api_version_ty:ty,
@@ -141,16 +144,23 @@ macro_rules! make_service {
                                                     let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
                                                         propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
                                                     });
-                                                    let tracer = opentelemetry::global::tracer("aziot-edged");
+                                                    let tracer = opentelemetry::global::tracer($name);
                                                     use opentelemetry::trace::Tracer;
-                                                    // let span = tracer .start("edgelet-http-mgmt:module:list");
-                                                    // let cx = opentelemetry::trace::TraceContextExt::current_with_span(span).with_parent_context(parent_cx);
+                                                    use opentelemetry::KeyValue;
+                                                    fn type_of<T>(_: &T) -> &'static str {
+                                                        std::any::type_name::<T>()
+                                                    }                                                    
                                                     let span = tracer
-                                                        .span_builder("edgelet-http-mgmt:module:list")
+                                                        .span_builder(type_of(&route))
                                                         .with_kind(opentelemetry::trace::SpanKind::Server)
                                                         .with_parent_context(parent_cx)
+                                                        .with_attributes(vec![KeyValue::new(
+                                                            "route",
+                                                            type_of(&route)
+                                                        ),
+                                                        ])
                                                     .start(&tracer);
-                                                    let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);                                            
+                                                    let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);
                                                     match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::get(route), cx.clone()).await {
                                                         Ok(result) => result,
                                                         Err(err) => return Ok(err.to_http_response()),
@@ -461,6 +471,7 @@ mod test_server {
 
     http_common::make_service! {
         service: Service,
+        name: String::new("test_route"),
         api_version: ApiVersion,
         routes: [
             test_route::Route,
@@ -498,4 +509,5 @@ mod test_server {
             type PutBody = serde::de::IgnoredAny;
         }
     }
+
 }

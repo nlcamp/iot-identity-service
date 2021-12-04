@@ -46,6 +46,11 @@ aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
+opentelemetry = { version = "0.16", features = ["rt-tokio", "metrics", "serialize"], optional = true }
+opentelemetry-http = { version = "0.5", optional = true }
+opentelemetry-otlp = { version = "0.9", features = ["tonic", "metrics"], optional = true }
 
+[features]
+otel = ["opentelemetry", "opentelemetry-http", "opentelemetry-otlp"]
 
 [dev-dependencies]
