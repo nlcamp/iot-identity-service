@@ -30,19 +30,31 @@ cfg_if::cfg_if! {
     }
 }
 
+#[cfg(feature="otel")]
+fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+    global::set_text_map_propagator(TraceContextPropagator::new());
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://localhost:4317"),
+        )
+        .with_trace_config(
+            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "aziot-identityd",
+            )])),
+        )
+        .install_batch(opentelemetry::runtime::Tokio)
+}
+
 const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
 #[tokio::main]
 async fn main() {
     logger::try_init()
         .expect("cannot fail to initialize global logger from the process entrypoint");
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "otel")] {
-            let _tracer = init_tracer().expect("Error initializing tracer");
-        }
-    }
-
     if let Err(err) = main_inner().await {
         log::error!("{}", err.0);
 
@@ -75,14 +87,32 @@ async fn main_inner() -> Result<(), Error> {
         }
 
         ProcessName::Identityd => {
-            run(
-                aziot_identityd::main,
-                "AZIOT_IDENTITYD_CONFIG",
-                "/etc/aziot/identityd/config.toml",
-                "AZIOT_IDENTITYD_CONFIG_DIR",
-                "/etc/aziot/identityd/config.d",
-            )
-            .await?;
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "otel")] {
+                    let _tracer = init_tracer().expect("Error initializing tracer");
+                    let tracer = global::tracer("aziot-identityd");
+                    tracer
+                        .in_span("run", |_cx| async {
+                            run(
+                                aziot_identityd::main,
+                                "AZIOT_IDENTITYD_CONFIG",
+                                "/etc/aziot/identityd/config.toml",
+                                "AZIOT_IDENTITYD_CONFIG_DIR",
+                                "/etc/aziot/identityd/config.d",
+                            ).await.ok();
+                        })
+                        .await;
+                } else {
+                    run(
+                        aziot_identityd::main,
+                        "AZIOT_IDENTITYD_CONFIG",
+                        "/etc/aziot/identityd/config.toml",
+                        "AZIOT_IDENTITYD_CONFIG_DIR",
+                        "/etc/aziot/identityd/config.d",
+                    )
+                    .await?;
+                }
+            }
         }
 
         ProcessName::Keyd => {
@@ -320,23 +350,4 @@ mod tests {
             let _ = super::process_name_from_args(&mut input).unwrap_err();
         }
     }
-}
-
-#[cfg(features="otel")]
-fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
-    global::set_text_map_propagator(TraceContextPropagator::new());
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .with_trace_config(
-            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "aziot-edged",
-            )])),
-        )
-        .install_batch(opentelemetry::runtime::Tokio)
 }

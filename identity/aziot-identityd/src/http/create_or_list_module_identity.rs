@@ -1,9 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[cfg(feature="otel")]
+#[cfg(feature = "otel")]
 use opentelemetry::{
     global,
-    trace::{Span, Tracer, TracerProvider},
+    trace::{FutureExt, Span, TraceContextExt, Tracer, TracerProvider},
+    Context,
 };
 
 pub(super) struct Route {
