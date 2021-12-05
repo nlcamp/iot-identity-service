@@ -4,6 +4,13 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::must_use_candidate, clippy::missing_errors_doc)]
 
+#[cfg(feature = "otel")]
+use opentelemetry::{
+    Context,
+    global,
+    trace::{FutureExt, Span, Tracer, TracerProvider},
+};
+
 use aziot_identity_common::{Identity, ID_TYPE_AZIOT, ID_TYPE_LOCAL};
 
 // All exports of aziot_identity_common_http are used in this file.
@@ -193,14 +200,29 @@ impl Client {
     }
 
     pub async fn get_identities(&self) -> Result<Vec<Identity>, std::io::Error> {
-        let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "otel")] {
+                let cx = Context::current();
+                let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
+                    &self.inner,
+                    http::Method::GET,
+                    make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
+                    None,
+                    self.max_retries,
+                )
+                .with_context(cx)
+                .await?;
+            } else {
+                let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
+                    &self.inner,
+                    http::Method::GET,
+                    make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
+                    None,
+                    self.max_retries,
+                )
+                .await?;
+            }
+        }
 
         Ok(res.identities)
     }

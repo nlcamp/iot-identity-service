@@ -12,4 +12,11 @@ percent-encoding = "2"
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-identity-common = { path = "../aziot-identity-common" }
 aziot-identity-common-http = { path = "../aziot-identity-common-http" }
+cfg-if = "1.0"
 http-common = { path = "../../http-common" }
+opentelemetry = { version = "0.16", features = ["rt-tokio", "metrics", "serialize"], optional = true }
+opentelemetry-http = { version = "0.5", optional = true }
+opentelemetry-otlp = { version = "0.9", features = ["tonic", "metrics"], optional = true }
+
+[features]
+otel = ["opentelemetry", "opentelemetry-http", "opentelemetry-otlp"]
