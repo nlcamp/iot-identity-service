@@ -202,15 +202,21 @@ impl Client {
     pub async fn get_identities(&self) -> Result<Vec<Identity>, std::io::Error> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "otel")] {
-                let cx = Context::current();
-                let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
+                // let cx = Context::current();
+                let tracer = opentelemetry::global::tracer("aziot-identityd");
+                let span = tracer
+                    .span_builder("aziot-identity-client-async:get_identities")
+                    .with_kind(opentelemetry::trace::SpanKind::Client)
+                    // .with_parent_context(parent_cx)
+                    .start(&tracer);
+                let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);
+                let res: get_module_identities::Response = opentelemetry::trace::FutureExt::with_context(http_common::request_with_retry::<(), _>(
                     &self.inner,
                     http::Method::GET,
                     make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
                     None,
                     self.max_retries,
-                )
-                .with_context(cx)
+                ), cx.clone())
                 .await?;
             } else {
                 let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
