@@ -1,6 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use std::convert::TryFrom;
+#[cfg(feature = "otel")]
+use opentelemetry::{
+    Context,
+    global,
+    trace::{FutureExt, Span, Tracer, TracerProvider},
+};
+#[cfg(feature = "otel")]
+use opentelemetry_http::HeaderInjector;
 use std::str::FromStr;
 
 pub async fn request<TRequest, TResponse>(
@@ -27,7 +35,16 @@ where
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
 {
-    request_internal(client, method, uri, None, Some(max_retries), body, true).await
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "otel")] {
+            let cx = Context::current();
+            request_internal(client, method, uri, None, Some(max_retries), body, true)
+                .with_context(cx)
+                .await        
+        } else {
+            request_internal(client, method, uri, None, Some(max_retries), body, true).await
+        }
+    }
 }
 
 pub async fn request_with_headers<TUri, TRequest, TResponse>(
@@ -105,8 +122,18 @@ where
     TResponse: serde::de::DeserializeOwned,
     TUri: Clone,
 {
-    let (res_status_code, headers, body) =
-        make_call(client, method, uri, headers, max_retries.unwrap_or(0), body).await?;
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "otel")] {
+            let cx = Context::current();
+            let (res_status_code, headers, body) =
+                make_call(client, method, uri, headers, max_retries.unwrap_or(0), body)
+                .with_context(cx)
+                .await?;
+        } else {
+            let (res_status_code, headers, body) =
+                make_call(client, method, uri, headers, max_retries.unwrap_or(0), body).await?;
+        }
+    }
 
     match res_status_code {
         // Successful call with response
@@ -166,6 +193,14 @@ where
         let mut req = hyper::Request::builder()
             .method(method.clone())
             .uri(uri.clone());
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "otel")] {
+                let cx = Context::current();
+                global::get_text_map_propagator(|propagator| {
+                    propagator.inject_context(&cx, &mut HeaderInjector(&mut req.headers_mut().unwrap()))
+                });
+            }
+        }
 
         if let Some(headers) = headers {
             if let Some(headers_map) = req.headers_mut() {
