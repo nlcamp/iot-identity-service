@@ -97,6 +97,30 @@ macro_rules! make_service {
                         let route: Option<$route> = http_common::server::Route::from_uri(&*this, path, &query_params, &extensions);
                             if let Some(route) = route {
                                 return Box::pin(async move {
+                                    cfg_if::cfg_if! {
+                                        if #[cfg(feature = "otel")] {
+                                            let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+                                                propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
+                                            });
+                                            let tracer = opentelemetry::global::tracer($name);
+                                            use opentelemetry::trace::Tracer;
+                                            use opentelemetry::KeyValue;
+                                            fn type_of<T>(_: &T) -> &'static str {
+                                                std::any::type_name::<T>()
+                                            }                                                    
+                                            let span = tracer
+                                                .span_builder(type_of(&route))
+                                                .with_kind(opentelemetry::trace::SpanKind::Server)
+                                                .with_parent_context(parent_cx)
+                                                .with_attributes(vec![KeyValue::new(
+                                                    "route",
+                                                    type_of(&route)
+                                                ),
+                                                ])
+                                            .start(&tracer);
+                                            let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);
+                                        }
+                                    }
                                     let response = match method {
                                         http::Method::DELETE => {
                                             let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
@@ -132,35 +156,24 @@ macro_rules! make_service {
                                                 }
                                             };
 
-                                            match <$route as http_common::server::Route>::delete(route, body).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
+                                            cfg_if::cfg_if! {
+                                                if #[cfg(feature = "otel")] {
+                                                    match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::delete(route, body), cx.clone()).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                } else {
+                                                    match <$route as http_common::server::Route>::delete(route, body).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                }
                                             }
                                         },
 
                                         http::Method::GET => {
                                             cfg_if::cfg_if! {
                                                 if #[cfg(feature = "otel")] {
-                                                    let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
-                                                        propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
-                                                    });
-                                                    let tracer = opentelemetry::global::tracer($name);
-                                                    use opentelemetry::trace::Tracer;
-                                                    use opentelemetry::KeyValue;
-                                                    fn type_of<T>(_: &T) -> &'static str {
-                                                        std::any::type_name::<T>()
-                                                    }                                                    
-                                                    let span = tracer
-                                                        .span_builder(type_of(&route))
-                                                        .with_kind(opentelemetry::trace::SpanKind::Server)
-                                                        .with_parent_context(parent_cx)
-                                                        .with_attributes(vec![KeyValue::new(
-                                                            "route",
-                                                            type_of(&route)
-                                                        ),
-                                                        ])
-                                                    .start(&tracer);
-                                                    let cx: opentelemetry::Context = opentelemetry::trace::TraceContextExt::current_with_span(span);
                                                     match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::get(route), cx.clone()).await {
                                                         Ok(result) => result,
                                                         Err(err) => return Ok(err.to_http_response()),
@@ -208,10 +221,18 @@ macro_rules! make_service {
                                                     _ => None,
                                                 }
                                             };
-
-                                            match <$route as http_common::server::Route>::post(route, body).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
+                                            cfg_if::cfg_if! {
+                                                if #[cfg(feature = "otel")] {
+                                                    match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::post(route, body), cx.clone()).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                } else {
+                                                    match <$route as http_common::server::Route>::post(route, body).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                }
                                             }
                                         },
 
@@ -249,9 +270,18 @@ macro_rules! make_service {
                                                 },
                                             };
 
-                                            match <$route as http_common::server::Route>::put(route, body).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
+                                            cfg_if::cfg_if! {
+                                                if #[cfg(feature = "otel")] {
+                                                    match opentelemetry::trace::FutureExt::with_context(<$route as http_common::server::Route>::put(route, body), cx.clone()).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                } else {
+                                                    match <$route as http_common::server::Route>::put(route, body).await {
+                                                        Ok(result) => result,
+                                                        Err(err) => return Ok(err.to_http_response()),
+                                                    }
+                                                }
                                             }
                                         },
 
