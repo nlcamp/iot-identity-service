@@ -101,9 +101,13 @@ macro_rules! make_service {
                                         if #[cfg(feature = "otel")] {
                                             use opentelemetry::trace::Tracer;
                                             use opentelemetry::KeyValue;
-                                            fn <T>(_: &T) -> &'static str {
+                                            fn type_of<T>(_: &T) -> &'static str {
                                                 std::any::type_name::<T>()
                                             }
+                                            let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+                                                propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
+                                            });
+                                            let tracer = opentelemetry::global::tracer($name);
                                             let mut span_name = String::from(type_of(&route));
                                             if let Some(_idx) = span_name.find("::Route") {
                                                 span_name = String::from(span_name.split("::Route").collect::<Vec<&str>>()[0]);
