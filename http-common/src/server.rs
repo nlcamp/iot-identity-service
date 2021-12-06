@@ -99,15 +99,15 @@ macro_rules! make_service {
                                 return Box::pin(async move {
                                     cfg_if::cfg_if! {
                                         if #[cfg(feature = "otel")] {
-                                            let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
-                                                propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
-                                            });
-                                            let tracer = opentelemetry::global::tracer($name);
                                             use opentelemetry::trace::Tracer;
                                             use opentelemetry::KeyValue;
                                             fn type_of<T>(_: &T) -> &'static str {
                                                 std::any::type_name::<T>()
-                                            }                                                    
+                                            }
+                                            let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+                                                propagator.extract(&opentelemetry_http::HeaderExtractor(&headers))
+                                            });
+                                            let tracer = opentelemetry::global::tracer($name);
                                             let span = tracer
                                                 .span_builder(type_of(&route))
                                                 .with_kind(opentelemetry::trace::SpanKind::Server)
@@ -539,5 +539,4 @@ mod test_server {
             type PutBody = serde::de::IgnoredAny;
         }
     }
-
 }

@@ -3,8 +3,7 @@
 #[cfg(feature = "otel")]
 use opentelemetry::{
     global,
-    trace::{FutureExt, Span, TraceContextExt, Tracer, TracerProvider},
-    Context,
+    trace::{Span, Tracer, TracerProvider},
 };
 
 pub(super) struct Route {
@@ -65,7 +64,7 @@ impl http_common::server::Route for Route {
         let auth_id = match api.authenticator.authenticate(self.user) {
             Ok(auth_id) => auth_id,
             Err(err) => {
-                #[cfg(feature="otel")]
+                #[cfg(feature = "otel")]
                 span.end();
                 return Err(super::to_http_error(&err));
             }
@@ -77,7 +76,7 @@ impl http_common::server::Route for Route {
         };
         let res = aziot_identity_common_http::get_module_identities::Response { identities };
         let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
-        #[cfg(feature="otel")]
+        #[cfg(feature = "otel")]
         span.end();
 
         Ok(res)

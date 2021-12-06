@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::convert::TryFrom;
 #[cfg(feature = "otel")]
-use opentelemetry::{
-    Context,
-    global,
-    trace::{FutureExt, Span, Tracer, TracerProvider},
-};
+use opentelemetry::{global, trace::FutureExt, Context};
 #[cfg(feature = "otel")]
 use opentelemetry_http::HeaderInjector;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 pub async fn request<TRequest, TResponse>(
@@ -40,7 +36,7 @@ where
             let cx = Context::current();
             request_internal(client, method, uri, None, Some(max_retries), body, true)
                 .with_context(cx)
-                .await        
+                .await
         } else {
             request_internal(client, method, uri, None, Some(max_retries), body, true).await
         }
@@ -197,7 +193,7 @@ where
             if #[cfg(feature = "otel")] {
                 let cx = Context::current();
                 global::get_text_map_propagator(|propagator| {
-                    propagator.inject_context(&cx, &mut HeaderInjector(&mut req.headers_mut().unwrap()))
+                    propagator.inject_context(&cx, &mut HeaderInjector(&mut req.headers_mut().unwrap()));
                 });
             }
         }
