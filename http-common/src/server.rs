@@ -107,9 +107,13 @@ macro_rules! make_service {
                                             use opentelemetry::KeyValue;
                                             fn type_of<T>(_: &T) -> &'static str {
                                                 std::any::type_name::<T>()
-                                            }                                                    
+                                            }
+                                            let mut span_name = String::from(type_of(&route));
+                                            if let Some(_idx) = span_name.find("::Route") {
+                                                span_name = String::from(span_name.split("::Route").collect::<Vec<&str>>()[0]);
+                                            }                                         
                                             let span = tracer
-                                                .span_builder(type_of(&route))
+                                                .span_builder(span_name)
                                                 .with_kind(opentelemetry::trace::SpanKind::Server)
                                                 .with_parent_context(parent_cx)
                                                 .with_attributes(vec![KeyValue::new(
