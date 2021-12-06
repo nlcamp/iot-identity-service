@@ -54,7 +54,7 @@ impl http_common::server::Route for Route {
             if #[cfg(feature = "otel")] {
                 let tracer_provider = global::tracer_provider();
                 let tracer = tracer_provider.tracer("aziot-identityd", Some(env!("CARGO_PKG_VERSION")));
-                let mut span = tracer.start("identity:get");
+                let mut span = tracer.start("identities:get");
             }
         }
 
