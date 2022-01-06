@@ -76,6 +76,11 @@ jobs:
           os_package="$OS"
         fi
         echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
+    - name: 'Generate SBOM'
+      id: 'generate-sbom'
+      run: |
+        sudo apt-get install -y dotnet-sdk-6.0
+        dotnet Microsoft.ManifestTool.dll -b packages -bc packages -pn aziot-identity-service -V Verbose         
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
       with:
