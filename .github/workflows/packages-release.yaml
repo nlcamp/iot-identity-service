@@ -1,0 +1,18 @@
+name: 'packages-release'
+
+jobs:
+  call-workflow-packages:
+    uses: nlcamp/iot-identity-service/.github/workflows/packages.yaml@sbom-generation
+    - name:'Download Arifacts'
+    - uses: actions/download-artifact@v2
+      with:
+        path: $GITHUB_WORKSPACE/release-artifacts
+    - name: 'Generate SBOM'
+      id: 'generate-sbom'
+      run: |
+        sudo chmod a+w $GITHUB_WORKSPACE/release-artifacts
+        sudo apt-get install -y dotnet-sdk-3.1
+        dotnet new console
+        dotnet nuget add source https://1essharedassets.pkgs.visualstudio.com/_packaging/Packaging/nuget/v3/index.json --username IoTEdge1-1esSharedAssets-PAT --password ${{ secrets.SBOM_MANIFEST_TOOL_READ_TOKEN }} --store-password-in-clear-text
+        dotnet add package Microsoft.ManifestTool.CrossPlatform --version 2.0.6
+        dotnet ~/.nuget/packages/microsoft.manifesttool.crossplatform/2.0.6/Content/Microsoft.ManifestTool.dll generate -b $GITHUB_WORKSPACE/release-artifacts -bc $GITHUB_WORKSPACE -pn aziot-identity-service -V Verbose
