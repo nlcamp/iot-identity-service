@@ -3,11 +3,12 @@ name: 'packages-release'
 on:
   workflow_dispatch:
     branches: [release/1.2]
+    
+env:
+  PACKAGE_VERSION: '1.2.0~rc4'
+  PACKAGE_RELEASE: '1'
 
 jobs:
-  env:
-    PACKAGE_VERSION: '1.2.0~rc4'
-    PACKAGE_RELEASE: '1'
   packages:
     # TODO: Replace sbom-generation branch w/ release/1.2
     uses: nlcamp/iot-identity-service/.github/workflows/packages.yaml@sbom-generation
