@@ -83,8 +83,8 @@ setupCustomAllocationPolicy() {
         echo 'Creating an Azure Function for use as a DPS custom allocation policy...' >&2
         
         # Initialize function app project and function
-        func init DpsCustomAllocationFunctionProj --dotnet
-        pushd DpsCustomAllocationFunctionProj
+        func init "$dps_allocation_functionapp_name" --dotnet
+        pushd "$dps_allocation_functionapp_name"
         func new --name "$dps_allocation_function_name" --template "HTTP trigger" --authlevel "anonymous" --language C# --force
         
         # Copy source code into function app project
